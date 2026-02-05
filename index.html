@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dance With Me</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            background: #0a0a0f;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        #welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 1s ease-out;
+        }
+
+        #welcome-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #welcome-screen h1 {
+            font-size: 4rem;
+            color: #fff;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 30px rgba(255,255,255,0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        #welcome-screen p {
+            font-size: 1.3rem;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 2rem;
+            text-align: center;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+
+        .start-btn {
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(233,69,96,0.4);
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(233,69,96,0.6);
+        }
+
+        .option-btn {
+            padding: 0.7rem 1.5rem;
+            margin: 0.5rem;
+            font-size: 0.9rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 25px;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .option-btn:hover, .option-btn.active {
+            background: rgba(255,255,255,0.1);
+            border-color: #e94560;
+        }
+
+        #prompt-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            color: white;
+            text-shadow: 0 0 50px currentColor;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            z-index: 100;
+            text-align: center;
+        }
+
+        #prompt-display.visible {
+            opacity: 1;
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #controls.visible {
+            opacity: 1;
+        }
+
+        .control-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .control-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        #phase-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #phase-indicator.visible {
+            opacity: 1;
+        }
+
+        #instructions {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.4);
+            font-size: 0.85rem;
+            z-index: 50;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        #instructions.visible {
+            opacity: 1;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+    </style>
+</head>
+<body>
+    <div id="welcome-screen">
+        <h1>Dance With Me</h1>
+        <p>An invitation to move, breathe, and let go.<br>No right way. No wrong way. Just your way.</p>
+        <div style="margin-bottom: 2rem;">
+            <button class="option-btn active" data-mode="full">Full Experience</button>
+            <button class="option-btn" data-mode="gentle">Gentle Movement</button>
+        </div>
+        <button class="start-btn" id="start-btn">Begin</button>
+        <p style="font-size: 0.8rem; margin-top: 2rem; opacity: 0.5;">
+            Move your mouse. Press keys. Let the music guide you.
+        </p>
+    </div>
+
+    <div id="prompt-display"></div>
+    <div id="phase-indicator"></div>
+    <div id="instructions">
+        Move your mouse to create trails | Press SPACE to pulse | Arrow keys to shift energy
+    </div>
+
+    <div id="controls">
+        <button class="control-btn" id="pause-btn">Pause</button>
+        <button class="control-btn" id="restart-btn">Restart</button>
+    </div>
+
+    <script>
+        // ============================================
+        // DANCE EXPERIENCE - Configuration
+        // ============================================
+
+        const CONFIG = {
+            mode: 'full', // 'full' or 'gentle'
+            phases: ['warmup', 'build', 'peak', 'flow', 'cooldown', 'end'],
+            phaseDurations: {
+                warmup: 25000,    // 25 seconds
+                build: 35000,     // 35 seconds
+                peak: 45000,      // 45 seconds
+                flow: 35000,      // 35 seconds
+                cooldown: 20000,  // 20 seconds
+                end: 10000        // 10 seconds
+            },
+            prompts: {
+                warmup: [
+                    "breathe...",
+                    "feel the ground",
+                    "let your shoulders drop",
+                    "sway gently",
+                    "find your center"
+                ],
+                build: [
+                    "let it flow",
+                    "move your hands",
+                    "follow the light",
+                    "expand",
+                    "reach outward"
+                ],
+                peak: [
+                    "let go!",
+                    "dance!",
+                    "spin!",
+                    "jump!",
+                    "celebrate!",
+                    "be free!",
+                    "feel alive!"
+                ],
+                flow: [
+                    "float",
+                    "drift",
+                    "wave",
+                    "glide",
+                    "flow with it"
+                ],
+                cooldown: [
+                    "slow down",
+                    "breathe deep",
+                    "soften",
+                    "settle",
+                    "peace"
+                ],
+                end: [
+                    "thank you",
+                    "you danced beautifully"
+                ]
+            },
+            gentlePrompts: {
+                warmup: ["breathe...", "feel the rhythm", "gentle movements"],
+                build: ["sway", "feel the music", "let it flow"],
+                peak: ["move freely", "express yourself", "feel the beat"],
+                flow: ["float", "drift", "easy movements"],
+                cooldown: ["slow down", "breathe", "rest"],
+                end: ["thank you", "beautiful"]
+            }
+        };
+
+        // ============================================
+        // State
+        // ============================================
+
+        let state = {
+            started: false,
+            paused: false,
+            currentPhase: 'warmup',
+            phaseStartTime: 0,
+            energy: 0.3,
+            targetEnergy: 0.3,
+            beat: 0,
+            lastBeatTime: 0,
+            bpm: 120,
+            mouseTrail: [],
+            particles: [],
+            ripples: [],
+            pulseWaves: [],
+            hue: 0,
+            time: 0
+        };
+
+        let audioContext, analyser, dataArray, source;
+        let isPlaying = false;
+
+        // ============================================
+        // Audio Generation (Generative Music)
+        // ============================================
+
+        class GenerativeMusic {
+            constructor() {
+                this.audioContext = null;
+                this.masterGain = null;
+                this.isPlaying = false;
+                this.scheduledNotes = [];
+                this.nextBeatTime = 0;
+                this.currentBeat = 0;
+            }
+
+            async init() {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.audioContext.createGain();
+                this.masterGain.connect(this.audioContext.destination);
+                this.masterGain.gain.value = 0.3;
+
+                // Create analyser for visualisation
+                analyser = this.audioContext.createAnalyser();
+                analyser.fftSize = 256;
+                this.masterGain.connect(analyser);
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+
+            createOscillator(freq, type = 'sine', duration = 0.5, volume = 0.1) {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+
+                osc.type = type;
+                osc.frequency.value = freq;
+
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+
+                const now = this.audioContext.currentTime;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(volume, now + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+
+            playBeat() {
+                const phase = state.currentPhase;
+                const energy = state.energy;
+
+                // Bass drum on beats 1 and 3
+                if (state.beat % 4 === 0 || state.beat % 4 === 2) {
+                    this.createOscillator(60 + energy * 20, 'sine', 0.2, 0.15 * energy);
+                }
+
+                // Hi-hat pattern varies by phase
+                if (phase === 'peak' || phase === 'build') {
+                    if (state.beat % 2 === 1) {
+                        this.createNoise(0.05, 0.05 * energy);
+                    }
+                }
+
+                // Melodic elements
+                const scales = {
+                    warmup: [261.63, 293.66, 329.63, 392.00, 440.00], // C major pentatonic
+                    build: [293.66, 329.63, 392.00, 440.00, 523.25],
+                    peak: [329.63, 392.00, 440.00, 523.25, 587.33],
+                    flow: [392.00, 440.00, 493.88, 523.25, 587.33],
+                    cooldown: [261.63, 293.66, 329.63, 392.00, 440.00],
+                    end: [261.63, 329.63, 392.00]
+                };
+
+                const scale = scales[phase] || scales.warmup;
+
+                if (state.beat % 4 === 0) {
+                    const note = scale[Math.floor(Math.random() * scale.length)];
+                    this.createOscillator(note, 'triangle', 0.8, 0.08 * (0.5 + energy * 0.5));
+                }
+
+                if (phase === 'peak' && state.beat % 2 === 0) {
+                    const note = scale[Math.floor(Math.random() * scale.length)] * 2;
+                    this.createOscillator(note, 'sine', 0.3, 0.05);
+                }
+            }
+
+            createNoise(duration, volume) {
+                const bufferSize = this.audioContext.sampleRate * duration;
+                const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.audioContext.createBufferSource();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+
+                filter.type = 'highpass';
+                filter.frequency.value = 5000;
+
+                noise.buffer = buffer;
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+
+                const now = this.audioContext.currentTime;
+                gain.gain.setValueAtTime(volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                noise.start(now);
+            }
+
+            createPad(freq, duration = 2) {
+                const osc1 = this.audioContext.createOscillator();
+                const osc2 = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const filter = this.audioContext.createBiquadFilter();
+
+                osc1.type = 'sine';
+                osc2.type = 'triangle';
+                osc1.frequency.value = freq;
+                osc2.frequency.value = freq * 1.002; // Slight detune for richness
+
+                filter.type = 'lowpass';
+                filter.frequency.value = 800 + state.energy * 1500;
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+
+                const now = this.audioContext.currentTime;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.05, now + 0.5);
+                gain.gain.linearRampToValueAtTime(0.05, now + duration - 0.5);
+                gain.gain.linearRampToValueAtTime(0, now + duration);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + duration);
+                osc2.stop(now + duration);
+            }
+
+            scheduler() {
+                if (!this.isPlaying) return;
+
+                const bpm = 80 + state.energy * 60; // 80-140 BPM based on energy
+                state.bpm = bpm;
+                const secondsPerBeat = 60 / bpm;
+
+                while (this.nextBeatTime < this.audioContext.currentTime + 0.1) {
+                    this.playBeat();
+                    state.beat++;
+                    state.lastBeatTime = performance.now();
+
+                    // Ambient pad every 8 beats
+                    if (state.beat % 8 === 0) {
+                        const padFreqs = [130.81, 164.81, 196.00, 220.00];
+                        this.createPad(padFreqs[Math.floor(Math.random() * padFreqs.length)], 4);
+                    }
+
+                    this.nextBeatTime += secondsPerBeat;
+                }
+
+                setTimeout(() => this.scheduler(), 25);
+            }
+
+            start() {
+                if (this.isPlaying) return;
+                this.isPlaying = true;
+                this.nextBeatTime = this.audioContext.currentTime;
+                this.scheduler();
+            }
+
+            stop() {
+                this.isPlaying = false;
+            }
+
+            setVolume(vol) {
+                this.masterGain.gain.linearRampToValueAtTime(vol, this.audioContext.currentTime + 0.1);
+            }
+        }
+
+        let music;
+
+        // ============================================
+        // Particle System
+        // ============================================
+
+        class Particle {
+            constructor(x, y, hue) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4 * state.energy;
+                this.vy = (Math.random() - 0.5) * 4 * state.energy;
+                this.size = Math.random() * 20 + 5;
+                this.hue = hue + Math.random() * 30 - 15;
+                this.life = 1;
+                this.decay = 0.01 + Math.random() * 0.02;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
+                this.life -= this.decay;
+                this.size *= 0.99;
+            }
+
+            draw() {
+                push();
+                noStroke();
+                fill(this.hue, 70, 80, this.life * 0.6);
+                ellipse(this.x, this.y, this.size);
+                pop();
+            }
+        }
+
+        class Ripple {
+            constructor(x, y, hue) {
+                this.x = x;
+                this.y = y;
+                this.radius = 0;
+                this.maxRadius = 200 + state.energy * 200;
+                this.hue = hue;
+                this.life = 1;
+            }
+
+            update() {
+                this.radius += 5 + state.energy * 10;
+                this.life = 1 - (this.radius / this.maxRadius);
+            }
+
+            draw() {
+                if (this.life <= 0) return;
+                push();
+                noFill();
+                stroke(this.hue, 60, 70, this.life * 0.5);
+                strokeWeight(2 + state.energy * 3);
+                ellipse(this.x, this.y, this.radius * 2);
+                pop();
+            }
+
+            isDead() {
+                return this.radius >= this.maxRadius;
+            }
+        }
+
+        class PulseWave {
+            constructor() {
+                this.radius = 0;
+                this.maxRadius = Math.max(width, height);
+                this.life = 1;
+            }
+
+            update() {
+                this.radius += 15 + state.energy * 20;
+                this.life = 1 - (this.radius / this.maxRadius);
+            }
+
+            draw() {
+                if (this.life <= 0) return;
+                push();
+                noFill();
+                stroke(state.hue, 50, 80, this.life * 0.3);
+                strokeWeight(10 * this.life);
+                ellipse(width/2, height/2, this.radius * 2);
+                pop();
+            }
+
+            isDead() {
+                return this.radius >= this.maxRadius;
+            }
+        }
+
+        // ============================================
+        // p5.js Setup and Draw
+        // ============================================
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            colorMode(HSB, 360, 100, 100, 1);
+
+            // Initialize music
+            music = new GenerativeMusic();
+
+            // Event listeners
+            document.getElementById('start-btn').addEventListener('click', startExperience);
+            document.getElementById('pause-btn').addEventListener('click', togglePause);
+            document.getElementById('restart-btn').addEventListener('click', restartExperience);
+
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    CONFIG.mode = e.target.dataset.mode;
+                });
+            });
+        }
+
+        async function startExperience() {
+            await music.init();
+            music.start();
+
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('controls').classList.add('visible');
+            document.getElementById('phase-indicator').classList.add('visible');
+            document.getElementById('instructions').classList.add('visible');
+
+            state.started = true;
+            state.phaseStartTime = performance.now();
+
+            schedulePrompts();
+            schedulePhaseTransitions();
+        }
+
+        function togglePause() {
+            state.paused = !state.paused;
+            document.getElementById('pause-btn').textContent = state.paused ? 'Resume' : 'Pause';
+
+            if (state.paused) {
+                music.stop();
+            } else {
+                music.start();
+            }
+        }
+
+        function restartExperience() {
+            state.currentPhase = 'warmup';
+            state.phaseStartTime = performance.now();
+            state.energy = 0.3;
+            state.targetEnergy = 0.3;
+            state.beat = 0;
+            state.particles = [];
+            state.ripples = [];
+            state.pulseWaves = [];
+
+            if (state.paused) {
+                togglePause();
+            }
+
+            schedulePhaseTransitions();
+        }
+
+        function schedulePrompts() {
+            setInterval(() => {
+                if (state.paused || !state.started) return;
+
+                const prompts = CONFIG.mode === 'gentle' ?
+                    CONFIG.gentlePrompts[state.currentPhase] :
+                    CONFIG.prompts[state.currentPhase];
+
+                if (prompts && prompts.length > 0) {
+                    const prompt = prompts[Math.floor(Math.random() * prompts.length)];
+                    showPrompt(prompt);
+                }
+            }, 6000);
+        }
+
+        function schedulePhaseTransitions() {
+            const phases = CONFIG.phases;
+            let totalTime = 0;
+
+            phases.forEach((phase, index) => {
+                if (index === 0) return; // Skip first phase
+
+                totalTime += CONFIG.phaseDurations[phases[index - 1]];
+
+                setTimeout(() => {
+                    if (state.paused) return;
+                    transitionToPhase(phase);
+                }, totalTime);
+            });
+        }
+
+        function transitionToPhase(phase) {
+            state.currentPhase = phase;
+            state.phaseStartTime = performance.now();
+
+            // Update energy targets
+            const energyTargets = {
+                warmup: 0.3,
+                build: 0.5,
+                peak: 1.0,
+                flow: 0.7,
+                cooldown: 0.3,
+                end: 0.1
+            };
+
+            state.targetEnergy = energyTargets[phase];
+
+            // Show phase transition prompt
+            const phaseMessages = {
+                warmup: "let's begin...",
+                build: "building...",
+                peak: "let go!",
+                flow: "flow with it...",
+                cooldown: "slowly now...",
+                end: "thank you for dancing"
+            };
+
+            showPrompt(phaseMessages[phase]);
+
+            // Update phase indicator
+            document.getElementById('phase-indicator').textContent = phase.toUpperCase();
+        }
+
+        function showPrompt(text) {
+            const el = document.getElementById('prompt-display');
+            el.textContent = text;
+            el.classList.add('visible');
+            el.style.color = `hsl(${state.hue}, 70%, 70%)`;
+
+            setTimeout(() => {
+                el.classList.remove('visible');
+            }, 3000);
+        }
+
+        function draw() {
+            if (!state.started || state.paused) {
+                background(10, 10, 15);
+                return;
+            }
+
+            state.time++;
+
+            // Smoothly transition energy
+            state.energy += (state.targetEnergy - state.energy) * 0.01;
+
+            // Update hue based on phase
+            const phaseHues = {
+                warmup: 200,   // Blue
+                build: 280,    // Purple
+                peak: 340,     // Pink/Red
+                flow: 160,     // Cyan
+                cooldown: 220, // Blue
+                end: 240       // Deep blue
+            };
+
+            const targetHue = phaseHues[state.currentPhase] || 200;
+            state.hue += (targetHue - state.hue) * 0.02;
+
+            // Background with fade trail
+            background(state.hue, 30, 10, 0.1);
+
+            // Get audio data
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+            }
+
+            // Calculate beat intensity
+            let bassEnergy = 0;
+            if (dataArray) {
+                for (let i = 0; i < 10; i++) {
+                    bassEnergy += dataArray[i];
+                }
+                bassEnergy /= 10 * 255;
+            }
+
+            // Draw flowing background shapes
+            drawFlowingShapes();
+
+            // Draw center visualization
+            drawCenterVisualization(bassEnergy);
+
+            // Update and draw particles
+            for (let i = state.particles.length - 1; i >= 0; i--) {
+                state.particles[i].update();
+                state.particles[i].draw();
+
+                if (state.particles[i].life <= 0) {
+                    state.particles.splice(i, 1);
+                }
+            }
+
+            // Update and draw ripples
+            for (let i = state.ripples.length - 1; i >= 0; i--) {
+                state.ripples[i].update();
+                state.ripples[i].draw();
+
+                if (state.ripples[i].isDead()) {
+                    state.ripples.splice(i, 1);
+                }
+            }
+
+            // Update and draw pulse waves
+            for (let i = state.pulseWaves.length - 1; i >= 0; i--) {
+                state.pulseWaves[i].update();
+                state.pulseWaves[i].draw();
+
+                if (state.pulseWaves[i].isDead()) {
+                    state.pulseWaves.splice(i, 1);
+                }
+            }
+
+            // Draw mouse trail
+            drawMouseTrail();
+
+            // Spawn particles on beat
+            const timeSinceBeat = performance.now() - state.lastBeatTime;
+            if (timeSinceBeat < 100) {
+                const beatIntensity = 1 - (timeSinceBeat / 100);
+                if (Math.random() < state.energy * 0.3) {
+                    const angle = Math.random() * TWO_PI;
+                    const dist = 50 + Math.random() * 100;
+                    state.particles.push(new Particle(
+                        width/2 + cos(angle) * dist,
+                        height/2 + sin(angle) * dist,
+                        state.hue
+                    ));
+                }
+            }
+        }
+
+        function drawFlowingShapes() {
+            push();
+            noFill();
+
+            // Flowing waves
+            for (let i = 0; i < 3; i++) {
+                stroke(state.hue + i * 20, 40, 60, 0.1 + state.energy * 0.1);
+                strokeWeight(2);
+
+                beginShape();
+                for (let x = 0; x <= width; x += 20) {
+                    const y = height/2 +
+                        sin(x * 0.01 + state.time * 0.02 + i) * 100 * state.energy +
+                        sin(x * 0.02 + state.time * 0.03) * 50 * state.energy;
+                    vertex(x, y);
+                }
+                endShape();
+            }
+
+            pop();
+        }
+
+        function drawCenterVisualization(bassEnergy) {
+            push();
+            translate(width/2, height/2);
+
+            // Pulsing center circle
+            const baseSize = 100 + state.energy * 100;
+            const pulseSize = baseSize + bassEnergy * 50;
+
+            // Glow effect
+            for (let i = 5; i > 0; i--) {
+                noStroke();
+                fill(state.hue, 60, 70, 0.05);
+                ellipse(0, 0, pulseSize + i * 30);
+            }
+
+            // Main circle
+            noFill();
+            stroke(state.hue, 70, 80, 0.8);
+            strokeWeight(2 + state.energy * 2);
+            ellipse(0, 0, pulseSize);
+
+            // Rotating arcs
+            const numArcs = 6;
+            for (let i = 0; i < numArcs; i++) {
+                const angle = (TWO_PI / numArcs) * i + state.time * 0.01 * (i % 2 === 0 ? 1 : -1);
+                const arcSize = pulseSize * 1.3 + i * 20;
+
+                stroke(state.hue + i * 10, 60, 70, 0.4);
+                strokeWeight(3);
+                arc(0, 0, arcSize, arcSize, angle, angle + PI/3);
+            }
+
+            // Frequency visualization
+            if (dataArray) {
+                const numBars = 32;
+                for (let i = 0; i < numBars; i++) {
+                    const angle = (TWO_PI / numBars) * i - HALF_PI;
+                    const value = dataArray[i] / 255;
+                    const barLength = 30 + value * 100 * state.energy;
+
+                    const x1 = cos(angle) * (pulseSize/2 + 10);
+                    const y1 = sin(angle) * (pulseSize/2 + 10);
+                    const x2 = cos(angle) * (pulseSize/2 + 10 + barLength);
+                    const y2 = sin(angle) * (pulseSize/2 + 10 + barLength);
+
+                    stroke(state.hue + i * 3, 70, 70 + value * 30, 0.6);
+                    strokeWeight(4);
+                    line(x1, y1, x2, y2);
+                }
+            }
+
+            pop();
+        }
+
+        function drawMouseTrail() {
+            if (state.mouseTrail.length < 2) return;
+
+            push();
+            noFill();
+
+            for (let i = 1; i < state.mouseTrail.length; i++) {
+                const alpha = i / state.mouseTrail.length;
+                stroke(state.hue + i * 2, 70, 80, alpha * 0.5);
+                strokeWeight(3 + alpha * 5 * state.energy);
+
+                const p1 = state.mouseTrail[i - 1];
+                const p2 = state.mouseTrail[i];
+                line(p1.x, p1.y, p2.x, p2.y);
+            }
+
+            pop();
+
+            // Fade out trail
+            if (state.mouseTrail.length > 50) {
+                state.mouseTrail.shift();
+            }
+        }
+
+        function mouseMoved() {
+            if (!state.started || state.paused) return;
+
+            state.mouseTrail.push({ x: mouseX, y: mouseY });
+
+            // Spawn particles on mouse movement
+            if (Math.random() < 0.3 * state.energy) {
+                state.particles.push(new Particle(mouseX, mouseY, state.hue));
+            }
+        }
+
+        function mousePressed() {
+            if (!state.started || state.paused) return;
+
+            // Create ripple
+            state.ripples.push(new Ripple(mouseX, mouseY, state.hue));
+
+            // Burst of particles
+            for (let i = 0; i < 10 * state.energy; i++) {
+                state.particles.push(new Particle(mouseX, mouseY, state.hue));
+            }
+        }
+
+        function keyPressed() {
+            if (!state.started || state.paused) return;
+
+            if (key === ' ') {
+                // Space bar - pulse wave
+                state.pulseWaves.push(new PulseWave());
+
+                // Burst of particles from center
+                for (let i = 0; i < 20 * state.energy; i++) {
+                    state.particles.push(new Particle(width/2, height/2, state.hue));
+                }
+            }
+
+            if (keyCode === UP_ARROW) {
+                state.targetEnergy = min(state.targetEnergy + 0.1, 1);
+            }
+
+            if (keyCode === DOWN_ARROW) {
+                state.targetEnergy = max(state.targetEnergy - 0.1, 0.1);
+            }
+
+            if (keyCode === LEFT_ARROW) {
+                state.hue = (state.hue - 30 + 360) % 360;
+            }
+
+            if (keyCode === RIGHT_ARROW) {
+                state.hue = (state.hue + 30) % 360;
+            }
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+        }
+    </script>
+</body>
+</html>
